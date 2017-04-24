@@ -27,32 +27,48 @@ spec:
         - name: ironic-inspector
           image: {{.Values.global.image_repository}}/{{.Values.global.image_namespace}}/ubuntu-source-ironic-inspector:{{.Values.image_version_ironic_inspector}}
           imagePullPolicy: IfNotPresent
-          command:
-            - /usr/local/bin/kubernetes-entrypoint
           env:
             - name: COMMAND
-              value: "/container.init/ironic-inspector-start"
+              value: "ironic-inspector --config-file /var/lib/kolla/config_files/ironic.conf"
             - name: NAMESPACE
               value: {{ .Release.Namespace }}
             - name: DEPENDENCY_SERVICE
               value: "ironic-api,rabbitmq"
-            - name: DEBUG_CONTAINER
-              value: "false"
           volumeMounts:
-            - mountPath: /ironic-etc
-              name: ironic-etc
+            - mountPath: /var/lib/kolla/config_files
+              name: ironic-inspector-etc
             - mountPath: /ironic-patches
               name: ironic-patches
-            - mountPath: /container.init
-              name: container-init
+{{- if .Values.image_version_staticdhcpd}}
+        - name: dhcp
+          image: {{.Values.global.image_repository}}/{{.Values.global.image_namespace}}/ubuntu-source-staticdhcpd:{{.Values.image_version_staticdhcpd}}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          ports:
+            - name: dhcp
+              protocol: UDP
+              containerPort: {{.Values.inspector.dhcp.port}}
+            - name: dhcp-proxy
+              protocol: UDP
+              containerPort: {{.Values.inspector.dhcp.proxy_port}}
+          volumeMounts:
+            - name: dhcp-config
+              mountPath: /var/lib/kolla/config_files
+{{- end }}
       volumes:
-        - name: ironic-etc
+        - name: ironic-inspector-etc
           configMap:
-            name: ironic-etc
+            name: ironic-inspector-etc
         - name: ironic-patches
           configMap:
             name: ironic-patches
-        - name: container-init
+{{- if .Values.image_version_staticdhcpd }}
+        - name: dhcp-config
           configMap:
-            name: ironic-bin
-            defaultMode: 0755
+            name: ironic-inspector-dhcp
+            defaultMode: 0400
+{{ end }}
