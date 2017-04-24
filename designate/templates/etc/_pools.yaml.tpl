@@ -1,8 +1,11 @@
-{{ range $pool := .Values.bind_pools }}
+{{- range $pool := .Values.bind_pools }}
 - name: {{ $pool.name }}
   description: Bind9 Pool
+  {{- if $pool.attributes}}
   attributes:
-    internal: true
+    external: {{$pool.attributes.external}}
+    label: {{$pool.attributes.label}}
+  {{- end }}
   ns_records:
     {{- range $idx, $srv := $pool.nameservers}}
     - hostname: {{ $srv.hostname }}
@@ -31,13 +34,50 @@
         rndc_host: {{$srv.ip}}
         rndc_port: 953
         rndc_key_file: /etc/designate/rndc.key
-    {{end}}
-{{ end }}
-{{ range $pool := .Values.akamai_pools }}
+    {{- end}}
+{{- end }}
+{{- range $pool := .Values.sap_internet_pool }}
+- name: {{ $pool.name }}
+  description: SAP Internet DNS Bind Pool
+  attributes:
+    external: {{$pool.attributes.external}}
+    label: {{$pool.attributes.label}}
+  ns_records:
+    {{- range $idx, $srv := $pool.nameservers}}
+    - hostname: {{ $srv.hostname }}
+      priority: {{ add1 $idx }}
+    {{- end}}
+  nameservers:
+    {{- range $prio, $srv := $pool.nameservers}}
+    - host: {{ $srv.ip }}
+      port: 53
+    {{- end}}
+  targets:
+    {{- range $idx, $srv := $pool.nameservers}}
+    - type: bind9
+      description: BIND9 Server {{ add1 $idx }}
+
+      # List out the designate-mdns servers from which BIND servers should
+      # request zone transfers (AXFRs) from.
+      masters:
+        - host: {{ $.Values.global.designate_mdns_external_ip }}
+          port: 5354
+
+      # BIND Configuration options
+      options:
+        host: {{$srv.ip}}
+        port: 53
+        rndc_host: {{$srv.ip}}
+        rndc_port: 953
+        rndc_key_file: /etc/designate/rndc.key
+    {{- end}}
+{{- end }}
+{{- range $pool := .Values.akamai_pools }}
 - name: {{ $pool.name }}
   description: Akamai Pool
   attributes:
-    external: true
+    external: {{$pool.attributes.external}}
+    label: {{$pool.attributes.label}}
   ns_records:
     {{- range $idx, $srv := $pool.nameservers}}
     - hostname: {{ $srv.hostname }}
@@ -72,4 +112,4 @@
         tsig_key_name: "{{$pool.options.tsig_key_name}}"
         tsig_key_secret: "{{$pool.options.tsig_key_secret}}"
         tsig_key_algorithm: "{{$pool.options.tsig_key_algorithm}}"
-{{ end }}
+{{- end }}
