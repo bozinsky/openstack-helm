@@ -1,3 +1,4 @@
+{{- if .Values.global.ironic_tftp_ip}}
 kind: Service
 apiVersion: v1
 
@@ -8,9 +9,14 @@ metadata:
     type: backend
     component: ironic
 spec:
+  type: NodePort
   selector:
-    name: ironic-pxe
+    name: ironic-conductor
   ports:
     - name: ironic-pxe
       protocol: UDP
-      port: {{.Values.global.ironic_pxe_port_public}}
+      port: {{.Values.global.ironic_tftp_port_public}}
+  externalIPs:
+    - {{.Values.global.ironic_tftp_ip}}
+  sessionAffinity: "ClientIP"
+{{- end }}

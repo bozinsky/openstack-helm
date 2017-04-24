@@ -1,11 +1,8 @@
 [DEFAULT]
 debug = {{.Values.debug}}
-syslog_log_facility=LOG_LOCAL0
-use_syslog=yes
-#admin_token =
-enabled_drivers=pxe_ipmitool,agent_ipmitool
-network_provider=neutron_plugin
+log-config-append = /var/lib/kolla/config_files/logging.conf
 
+enabled_drivers=pxe_ipmitool,agent_ipmitool
 enabled_network_interfaces=noop,flat,neutron
 default_network_interface=neutron
 
@@ -19,33 +16,28 @@ user_domain_name = {{.Values.global.keystone_service_domain}}
 project_name = {{.Values.global.keystone_service_project}}
 project_domain_name = {{.Values.global.keystone_service_domain}}
 
-
-[dhcp]
-dhcp_provider=none
-
 [api]
 host_ip = 0.0.0.0
-
 
 [firewall]
 manage_firewall=False
 
 [processing]
 always_store_ramdisk_logs=true
-ramdisk_logs_dir=/var/log/ironic-inspector/
+ramdisk_logs_dir=/var/log/kolla/ironic/
 add_ports=all
 keep_ports=all
 ipmi_address_fields=ilo_address
-enable_setting_ipmi_credentials=true
 log_bmc_address=true
 node_not_found_hook=enroll
 default_processing_hooks=ramdisk_error,root_disk_selection,scheduler,validate_interfaces,capabilities,pci_devices,extra_hardware
-processing_hooks=$default_processing_hooks, local_link_connection
+processing_hooks=$default_processing_hooks,local_link_connection
 
 [discovery]
 enroll_node_driver=agent_ipmitool
-
-
+{{- if .Values.inspector.driver_defaults }}
+driver_defaults={{ .Values.inspector.driver_defaults | replace "$" "$$" | quote }}
+{{- end }}
 
 [database]
 connection = postgresql://{{.Values.inspector_db_user}}:{{.Values.inspector_db_password}}@{{include "ironic_db_host" .}}:{{.Values.global.postgres_port_public}}/{{.Values.inspector_db_name}}
